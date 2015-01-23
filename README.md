@@ -1,7 +1,7 @@
 # S-DES-OpenCL
 Parallel S-DES encryption using OpenCL.
 
-Tested on ATI Raden HD5750. Speedup compare to CPU (AMD Phenom II X4 945) @ 3,3 GHz: 36,76x faster.
+Tested on ATI Raden HD5750. Speedup compare to CPU (AMD Phenom II X4 945) @ 3,3 GHz: 35,8x faster.
 
 ### Sample output (file 500 MB)
 ```
