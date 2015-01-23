@@ -9,12 +9,12 @@ using namespace std;
 
 
 // config:
-bool debug = false; // highly NOT recommended for bigger files!
+bool debug = false;
 short int key[10] = { 0, 0, 1, 0, 0, 1, 0, 1, 1, 1 }; // encryption key; keySize = 10
 bool crypt = true; // if true, plainFile will be crypted
 const string plainFilename = "lipsum-500mb.txt";
 bool decrypt = false; // if true, cryptedFile will be decrypted
-const string cryptedFilename = "encrypted_lipsum-100mb.txt";
+const string cryptedFilename = "encrypted_lipsum-500mb.txt";
 
 bool autoThreadsConfig = true; // automatic threads config optimal for specific GPU device. If set true, values defined below will be ignored
 unsigned long int numberOfThreads = 256*256*256; // global group size
@@ -34,8 +34,6 @@ void permuteKeyP10(short int * key);
 void permuteSubKeyP8(short int * inBlock, short int * outBlock);
 void shift1(short int * k);
 void shift2(short int * k);
-
-
 
 
 void generateSubKeys(short int * key, short int * subKeyK1, short int * subKeyK2)
@@ -141,9 +139,6 @@ void printBlock(short int * block, short int len)
 }
 
 
-
-
-
 int main(int argc, char* argv[])
 {
 	clock_t start_time_total = clock(); // time capture
@@ -170,14 +165,9 @@ int main(int argc, char* argv[])
 			platform = platforms[i];
 			found = true;
 		}
-	}
-
-
-	cout << "S-DES encryption of file: " << plainFilename << "." << endl;
-
+	}	
 
 	// generate subKeys
-	
 	generateSubKeys(key, subKeyK1, subKeyK2);
 	if (debug)
 	{
@@ -188,9 +178,9 @@ int main(int argc, char* argv[])
 		cout << endl;
 	}
 
-
 	if (crypt)
 	{
+		cout << "S-DES encryption of file: " << plainFilename << "." << endl;
 		// load file into memory
 		clock_t begin_load = clock(); // time capture
 
@@ -214,14 +204,11 @@ int main(int argc, char* argv[])
 		cout << "File loaded in\t\t" << double(clock() - begin_load) / CLOCKS_PER_SEC << " s" << endl;
 		cout << "File size: \t\t" << fileLength << " bytes." << endl;
 
-		outputText = new char[fileLength];
-
-		// ENCRYPTION
+		outputText = new char[fileLength];	
 				
 		
 		// OpenCL part ============================================================================
-		
-		clock_t begin_opencl = clock();  // time capture
+				
 		// Create context
 		const cl_context_properties prop[] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
 		cl_context context = clCreateContextFromType(prop, kDeviceType, NULL, NULL, &status);
@@ -235,12 +222,13 @@ int main(int argc, char* argv[])
 
 		// load opencl source
 		ifstream cl_file("kernel_crypt.cl");
-		string kernel_string(istreambuf_iterator<char>(cl_file), (istreambuf_iterator<char>()));
-		
-		if (debug)
+		if (cl_file.fail())
 		{
-			cout << "Kernel: " << endl << kernel_string << endl << endl;
+			cout << "Error opening kernel file!" << endl;
+			std::system("PAUSE");
+			return 1;
 		}
+		string kernel_string(istreambuf_iterator<char>(cl_file), (istreambuf_iterator<char>()));		
 		const char *src = kernel_string.c_str();
 
 		// create OpenCL program
@@ -252,7 +240,7 @@ int main(int argc, char* argv[])
 			clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 1024, log, NULL);
 			cout << "Build log:\n" << log << endl;
 			return EXIT_FAILURE;
-		}
+		}		
 
 		// create KERNEL
 		cl_kernel kernel = clCreateKernel(program, "crypt", NULL);
@@ -263,15 +251,15 @@ int main(int argc, char* argv[])
 			size_t buf_sizet = 0;
 			clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(buf_sizet), &buf_sizet, NULL);
 			threadsGroupSize = (unsigned int)buf_sizet;
-			numberOfThreads = (unsigned long int)ceil(fileLength / (float)threadsGroupSize) * threadsGroupSize;			
-								
+			numberOfThreads = (unsigned long int)ceil(fileLength / (float)threadsGroupSize) * threadsGroupSize;								
 		}
 		cout << "threadsGroupSize:\t" << threadsGroupSize << endl;
 		cout << "numberOfThreads:\t" << numberOfThreads << endl;
 
 
+		// ENCRYPTION
 		clock_t begin_encryption = clock();  // time capture
-
+		
 		// memory allocation for input and output buffors
 		cl_mem in_text = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_uchar) * fileLength, inputText, NULL);
 		cl_mem in_subkey_1 = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_short) * 8, subKeyK1, NULL);
@@ -279,8 +267,8 @@ int main(int argc, char* argv[])
 		cl_mem out_text = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cl_uchar) * fileLength, NULL, NULL);
 
 		// send parameters to kernel
-		cl_ulong cl_fileLength = fileLength;
-		cl_ulong cl_numberOfThreads = numberOfThreads;
+		const cl_ulong cl_fileLength = fileLength;
+		const cl_ulong cl_numberOfThreads = numberOfThreads;
 		clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&in_text);
 		clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&in_subkey_1);
 		clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&in_subkey_2);
@@ -294,19 +282,19 @@ int main(int argc, char* argv[])
 		size_t global_threads[dimensions] = { numberOfThreads };
 		size_t local_threads[dimensions] = { threadsGroupSize };
 
-
 		clock_t start_compute = clock();  // time capture
 		// execute kernel
 		cl_event event;
 		status = clEnqueueNDRangeKernel(cmd_queue, kernel, dimensions, offset, global_threads, local_threads, 0, NULL, &event);
-		clWaitForEvents(1, &event); // wait for finish
-		cout << "OpenCL computing time:\t" << double(clock() - begin_encryption) / CLOCKS_PER_SEC << " s" << endl;
+		clWaitForEvents(1, &event); // wait for finish		
 
 		// copy results to host
 		status = clEnqueueReadBuffer(cmd_queue, out_text, CL_TRUE, 0, fileLength * sizeof(cl_uchar), outputText, 0, NULL, NULL);
 
 		// finalize
 		clFinish(cmd_queue);
+
+		cout << "Encryption time:\t" << double(clock() - begin_encryption) / CLOCKS_PER_SEC << " s" << endl;
 
 		// cleanup
 		clReleaseMemObject(in_text);
@@ -318,13 +306,8 @@ int main(int argc, char* argv[])
 		clReleaseCommandQueue(cmd_queue);
 		clReleaseContext(context);
 
-
 		// end of OpenCL part =====================================================================
-
-
-		cout << "Compute + transfer\t" << double(clock() - begin_encryption) / CLOCKS_PER_SEC << " s" << endl;
-		cout << "OpenCL total work time\t" << double(clock() - begin_opencl) / CLOCKS_PER_SEC << " s" << endl;
-
+				
 		// Save result to file
 		clock_t begin_saving = clock();  // time capture		
 		ofstream output;
@@ -343,6 +326,163 @@ int main(int argc, char* argv[])
 
 		delete[] inputText;
 		delete[] outputText;
+	}
+
+
+	if (decrypt)
+	{
+		cout << "S-DES decryption of file: " << cryptedFilename << "." << endl;
+		// load file into memory
+		clock_t begin_load = clock(); // time capture
+
+		ifstream input;
+		unsigned long int fileLength = 0;
+		char * inputText;
+		char * outputText;
+		input.open(cryptedFilename, ios::binary); // open input file
+		if (!input.is_open())
+		{
+			cout << "Error opening input file!" << endl;
+			return 1;
+		}
+		input.seekg(0, input.end);			// go to the end
+		fileLength = input.tellg();			// report location (this is the length)		
+		input.seekg(0, input.beg);			// go back to the beginning
+		inputText = new char[fileLength];	// allocate memory for a buffer of appropriate dimension
+		input.read(inputText, fileLength);	// read the whole file into the buffer
+		input.close();						// close file handle
+
+		cout << "File loaded in\t\t" << double(clock() - begin_load) / CLOCKS_PER_SEC << " s" << endl;
+		cout << "File size: \t\t" << fileLength << " bytes." << endl;
+
+		outputText = new char[fileLength];
+
+
+		// OpenCL part ============================================================================
+
+		// Create context
+		const cl_context_properties prop[] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
+		cl_context context = clCreateContextFromType(prop, kDeviceType, NULL, NULL, &status);
+
+		if (status != CL_SUCCESS) {
+			cout << "Creating OpenCL context failed. Error code: " << status << endl;
+		}
+
+		// create queue
+		cl_command_queue cmd_queue = clCreateCommandQueue(context, device, 0, &status);
+
+		// load opencl source
+		ifstream cl_file("kernel_decrypt.cl");
+		if (cl_file.fail())
+		{
+			cout << "Error opening kernel file!" << endl;
+			std::system("PAUSE");
+			return 1;
+		}
+		string kernel_string(istreambuf_iterator<char>(cl_file), (istreambuf_iterator<char>()));
+		const char *src = kernel_string.c_str();
+
+		// create OpenCL program
+		cl_program program = clCreateProgramWithSource(context, 1, (const char**)&src, NULL, NULL);
+
+		status = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+		if (status != CL_SUCCESS) {
+			char log[1024] = {};
+			clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 1024, log, NULL);
+			cout << "Build log:\n" << log << endl;
+			return EXIT_FAILURE;
+		}
+
+		// create KERNEL
+		cl_kernel kernel = clCreateKernel(program, "decrypt", NULL);
+
+		// auto threads config
+		if (autoThreadsConfig)
+		{
+			size_t buf_sizet = 0;
+			clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(buf_sizet), &buf_sizet, NULL);
+			threadsGroupSize = (unsigned int)buf_sizet;
+			numberOfThreads = (unsigned long int)ceil(fileLength / (float)threadsGroupSize) * threadsGroupSize;
+		}
+		cout << "threadsGroupSize:\t" << threadsGroupSize << endl;
+		cout << "numberOfThreads:\t" << numberOfThreads << endl;
+
+
+		// ENCRYPTION
+		clock_t begin_encryption = clock();  // time capture
+
+		// memory allocation for input and output buffors
+		cl_mem in_text = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_uchar) * fileLength, inputText, NULL);
+		cl_mem in_subkey_1 = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_short) * 8, subKeyK1, NULL);
+		cl_mem in_subkey_2 = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_short) * 8, subKeyK2, NULL);
+		cl_mem out_text = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cl_uchar) * fileLength, NULL, NULL);
+
+		// send parameters to kernel
+		const cl_ulong cl_fileLength = fileLength;
+		const cl_ulong cl_numberOfThreads = numberOfThreads;
+		clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&in_text);
+		clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&in_subkey_1);
+		clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&in_subkey_2);
+		clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&out_text);
+		clSetKernelArg(kernel, 4, sizeof(cl_ulong), (void *)&cl_fileLength);
+		clSetKernelArg(kernel, 5, sizeof(cl_ulong), (void *)&cl_numberOfThreads);
+
+		// create index space
+		const int dimensions = 1;
+		size_t offset[dimensions] = { 0 };
+		size_t global_threads[dimensions] = { numberOfThreads };
+		size_t local_threads[dimensions] = { threadsGroupSize };
+
+		clock_t start_compute = clock();  // time capture
+		// execute kernel
+		cl_event event;
+		status = clEnqueueNDRangeKernel(cmd_queue, kernel, dimensions, offset, global_threads, local_threads, 0, NULL, &event);
+		clWaitForEvents(1, &event); // wait for finish		
+
+		// copy results to host
+		status = clEnqueueReadBuffer(cmd_queue, out_text, CL_TRUE, 0, fileLength * sizeof(cl_uchar), outputText, 0, NULL, NULL);
+
+		// finalize
+		clFinish(cmd_queue);
+
+		cout << "Encryption time:\t" << double(clock() - begin_encryption) / CLOCKS_PER_SEC << " s" << endl;
+
+		// cleanup
+		clReleaseMemObject(in_text);
+		clReleaseMemObject(in_subkey_1);
+		clReleaseMemObject(in_subkey_2);
+		clReleaseMemObject(out_text);
+		clReleaseKernel(kernel);
+		clReleaseProgram(program);
+		clReleaseCommandQueue(cmd_queue);
+		clReleaseContext(context);
+
+		// end of OpenCL part =====================================================================
+
+		// Save result to file
+		clock_t begin_saving = clock();  // time capture		
+		ofstream output;
+		output.open("decrypted_" + cryptedFilename, ios::binary);
+		if (!output.is_open())
+		{
+			cout << "Error opening file to save results!" << endl;
+			return 1;
+		}
+		output.write(outputText, fileLength);
+		output.close();
+		cout << "File saved in\t\t" << double(clock() - begin_saving) / CLOCKS_PER_SEC << " s" << endl;
+
+		// SUMMARY
+		cout << "Total time elapsed:\t" << double(clock() - start_time_total) / CLOCKS_PER_SEC << " s" << endl;
+
+		delete[] inputText;
+		delete[] outputText;
+	}
+
+
+	if (!crypt && !decrypt)
+	{
+		cout << "Hey, there's nothig to do!" << endl;
 	}
 
 

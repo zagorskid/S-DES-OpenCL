@@ -156,6 +156,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="kernel_crypt.cl" />
+    <None Include="kernel_decrypt.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

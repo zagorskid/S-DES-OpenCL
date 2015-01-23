@@ -230,3 +230,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 *.txt
+S-DES-OpenCL/S-DES-OpenCL.vcxproj
+S-DES-OpenCL/S-DES-OpenCL.vcxproj
+S-DES-OpenCL/S-DES-OpenCL.vcxproj.filters

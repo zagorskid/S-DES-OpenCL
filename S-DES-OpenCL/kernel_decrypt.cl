@@ -37,7 +37,7 @@ inline short int binToDec(short int bin1, short int bin2)
 
 
 
-__kernel void crypt(__global const unsigned char* inputText, __global const short int* subKeyK1, __global const short int* subKeyK2, 
+__kernel void decrypt(__global const unsigned char* inputText, __global const short int* subKeyK1, __global const short int* subKeyK2,
 	__global unsigned char* outputText, unsigned long int fileLength, unsigned long int numberOfThreads)
 {
 
@@ -47,13 +47,13 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 	for (unsigned long int n = id; n < fileLength; n += numberOfThreads)
 	{
 		unsigned char plainChar = inputText[n];
-				
+
 		// conversion from char to binary
 		for (int i = 7; i >= 0; --i)
 		{
 			inputBlock[7 - i] = (short int)((plainChar & (1 << i)) ? 1 : 0);
 		}
-				
+
 		// permutation IP of inputBlock
 		// IP = [ 1 5 2 0 3 7 4 6 ] 
 		short int tmp[8];
@@ -71,8 +71,8 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		inputBlock[6] = tmp[4];
 		inputBlock[7] = tmp[6];
 
-		
-		// FunctionF with subKeyK1	
+
+		// FunctionF with subKeyK2	
 		// split input block L / R
 		short int blockLeft[4] = { inputBlock[0], inputBlock[1], inputBlock[2], inputBlock[3] };
 		short int blockRight[4] = { inputBlock[4], inputBlock[5], inputBlock[6], inputBlock[7] };
@@ -83,7 +83,7 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		// blockExt XOR subKey
 		for (int i = 0; i < 8; ++i)
 		{
-			blockExt[i] = blockExt[i] ^ subKeyK1[i];
+			blockExt[i] = blockExt[i] ^ subKeyK2[i];
 		}
 
 		// S-Block S0 transformation
@@ -151,7 +151,7 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		inputBlock[6] = blockRight[2];
 		inputBlock[7] = blockRight[3];
 
-				
+
 		// SW
 		// input =	[ 0 1 2 3 4 5 6 7 ]
 		// output = [ 4 5 6 7 0 1 2 3 ]		
@@ -166,10 +166,10 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		inputBlock[6] = tmp_val;
 		tmp_val = inputBlock[3];
 		inputBlock[3] = inputBlock[7];
-		inputBlock[7] = tmp_val;		
+		inputBlock[7] = tmp_val;
 
-		
-		// FunctionF with subKeyK2
+
+		// FunctionF with subKeyK1
 		// split input block L / R
 		blockLeft[0] = inputBlock[0];
 		blockLeft[1] = inputBlock[1];
@@ -194,7 +194,7 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		// blockExt XOR subKey
 		for (int i = 0; i < 8; ++i)
 		{
-			blockExt[i] = blockExt[i] ^ subKeyK2[i];
+			blockExt[i] = blockExt[i] ^ subKeyK1[i];
 		}
 
 		// S-Block S0 transformation
@@ -261,7 +261,7 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		inputBlock[6] = blockRight[2];
 		inputBlock[7] = blockRight[3];
 
-		
+
 		// permutation ReIP of inputBlock
 		// IP^-1 = [ 4 1 3 5 7 2 8 6 ]
 		// IP^-1 = [ 3 0 2 4 6 1 7 5 ] -> indexes starts from 0		
@@ -278,8 +278,8 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		inputBlock[5] = tmp[1];
 		inputBlock[6] = tmp[7];
 		inputBlock[7] = tmp[5];
-		
-		
+
+
 		// conversion from binary to char
 		short int outputVal = 0;
 		short int factor = 128;
@@ -287,10 +287,10 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 		{
 			outputVal += (factor * inputBlock[i]);
 			factor = factor >> 1;
-		}			
-		
+		}
+
 		//short int outputVal = 65;
-		outputText[n] = (unsigned char)outputVal;		
+		outputText[n] = (unsigned char)outputVal;
 	}
 
 }
