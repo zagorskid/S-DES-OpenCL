@@ -12,13 +12,13 @@ using namespace std;
 bool debug = false; // highly NOT recommended for bigger files!
 short int key[10] = { 0, 0, 1, 0, 0, 1, 0, 1, 1, 1 }; // encryption key; keySize = 10
 bool crypt = true; // if true, plainFile will be crypted
-const string plainFilename = "lipsum-100mb.txt";
+const string plainFilename = "lipsum-500mb.txt";
 bool decrypt = false; // if true, cryptedFile will be decrypted
 const string cryptedFilename = "encrypted_lipsum-100mb.txt";
 
 bool autoThreadsConfig = true; // automatic threads config optimal for specific GPU device. If set true, values defined below will be ignored
-unsigned long int numberOfThreads = 256; // global group size
-unsigned int threadsGroupSize = 64; // local group size
+unsigned long int numberOfThreads = 256*256*256; // global group size
+unsigned int threadsGroupSize = 128; // local group size
 // config end
 
 
@@ -263,12 +263,11 @@ int main(int argc, char* argv[])
 			size_t buf_sizet = 0;
 			clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(buf_sizet), &buf_sizet, NULL);
 			threadsGroupSize = (unsigned int)buf_sizet;
-			numberOfThreads = (unsigned long int)ceil(fileLength / (float)threadsGroupSize) * threadsGroupSize;
-			
-			cout << "threadsGroupSize:\t" << threadsGroupSize << endl;
-			cout << "numberOfThreads:\t" << numberOfThreads << endl;					
+			numberOfThreads = (unsigned long int)ceil(fileLength / (float)threadsGroupSize) * threadsGroupSize;			
+								
 		}
-
+		cout << "threadsGroupSize:\t" << threadsGroupSize << endl;
+		cout << "numberOfThreads:\t" << numberOfThreads << endl;
 
 
 		clock_t begin_encryption = clock();  // time capture
@@ -291,9 +290,9 @@ int main(int argc, char* argv[])
 
 		// create index space
 		const int dimensions = 1;
-		size_t offset[] = { 0 };
+		size_t offset[dimensions] = { 0 };
 		size_t global_threads[dimensions] = { numberOfThreads };
-		size_t local_threads[] = { threadsGroupSize };
+		size_t local_threads[dimensions] = { threadsGroupSize };
 
 
 		clock_t start_compute = clock();  // time capture

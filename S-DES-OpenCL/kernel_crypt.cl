@@ -14,51 +14,7 @@ const short int sBlock1[4 * 4] = {
 
 
 // functions
-inline void permuteIP(short int * block);
-inline void permuteReIP(short int * block);
 inline short int binToDec(short int bin1, short int bin2);
-inline void shiftSW(short int * block);
-
-
-inline void permuteIP(short int * block)
-{
-	// IP = [ 2 6 3 1 4 8 5 7 ]
-	// IP = [ 1 5 2 0 3 7 4 6 ] -> indexes starts from 0
-	short int tmp[8];
-	for (int i = 0; i < 8; ++i)
-	{
-		tmp[i] = block[i];
-	}
-
-	block[0] = tmp[1];
-	block[1] = tmp[5];
-	block[2] = tmp[2];
-	block[3] = tmp[0];
-	block[4] = tmp[3];
-	block[5] = tmp[7];
-	block[6] = tmp[4];
-	block[7] = tmp[6];
-}
-
-inline void permuteReIP(short int * block)
-{
-	// IP^-1 = [ 4 1 3 5 7 2 8 6 ]
-	// IP^-1 = [ 3 0 2 4 6 1 7 5 ] -> indexes starts from 0
-	short int tmp[8];
-	for (int i = 0; i < 8; ++i)
-	{
-		tmp[i] = block[i];
-	}
-
-	block[0] = tmp[3];
-	block[1] = tmp[0];
-	block[2] = tmp[2];
-	block[3] = tmp[4];
-	block[4] = tmp[6];
-	block[5] = tmp[1];
-	block[6] = tmp[7];
-	block[7] = tmp[5];
-}
 
 
 inline short int binToDec(short int bin1, short int bin2)
@@ -80,28 +36,6 @@ inline short int binToDec(short int bin1, short int bin2)
 		return 0;
 	}
 }
-
-
-inline void shiftSW(short int * block)
-{
-	// input =	[ 0 1 2 3 4 5 6 7 ]
-	// output = [ 4 5 6 7 0 1 2 3 ]
-	short int tmp = block[0];
-	block[0] = block[4];
-	block[4] = tmp;
-	tmp = block[1];
-	block[1] = block[5];
-	block[5] = tmp;
-	tmp = block[2];
-	block[2] = block[6];
-	block[6] = tmp;
-	tmp = block[3];
-	block[3] = block[7];
-	block[7] = tmp;
-}
-
-
-
 
 
 
@@ -127,7 +61,27 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 
 		
 		// permutation IP of inputBlock
-		permuteIP(inputBlock);
+		//permuteIP(inputBlock);
+		// IP = [ 2 6 3 1 4 8 5 7 ]
+		// IP = [ 1 5 2 0 3 7 4 6 ] -> indexes starts from 0
+		short int tmp[8];
+		for (int i = 0; i < 8; ++i)
+		{
+			tmp[i] = inputBlock[i];
+		}
+
+		inputBlock[0] = tmp[1];
+		inputBlock[1] = tmp[5];
+		inputBlock[2] = tmp[2];
+		inputBlock[3] = tmp[0];
+		inputBlock[4] = tmp[3];
+		inputBlock[5] = tmp[7];
+		inputBlock[6] = tmp[4];
+		inputBlock[7] = tmp[6];
+
+
+
+
 		
 		// FunctionF with subKeyK1		
 		// split input block L / R
@@ -210,8 +164,21 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 
 				
 		// SW
-		shiftSW(inputBlock);
-		
+		//shiftSW(inputBlock);
+		// input =	[ 0 1 2 3 4 5 6 7 ]
+		// output = [ 4 5 6 7 0 1 2 3 ]		
+		short int tmp_val = inputBlock[0];
+		inputBlock[0] = inputBlock[4];
+		inputBlock[4] = tmp_val;
+		tmp_val = inputBlock[1];
+		inputBlock[1] = inputBlock[5];
+		inputBlock[5] = tmp_val;
+		tmp_val = inputBlock[2];
+		inputBlock[2] = inputBlock[6];
+		inputBlock[6] = tmp_val;
+		tmp_val = inputBlock[3];
+		inputBlock[3] = inputBlock[7];
+		inputBlock[7] = tmp_val;
 
 		
 
@@ -314,7 +281,25 @@ __kernel void crypt(__global const unsigned char* inputText, __global const shor
 
 		
 		// permutation ReIP of inputBlock
-		permuteReIP(inputBlock);
+		//permuteReIP(inputBlock);
+		// IP^-1 = [ 4 1 3 5 7 2 8 6 ]
+		// IP^-1 = [ 3 0 2 4 6 1 7 5 ] -> indexes starts from 0		
+		for (int i = 0; i < 8; ++i)
+		{
+			tmp[i] = inputBlock[i];
+		}
+
+		inputBlock[0] = tmp[3];
+		inputBlock[1] = tmp[0];
+		inputBlock[2] = tmp[2];
+		inputBlock[3] = tmp[4];
+		inputBlock[4] = tmp[6];
+		inputBlock[5] = tmp[1];
+		inputBlock[6] = tmp[7];
+		inputBlock[7] = tmp[5];
+
+
+
 
 		
 		// conversion from binary to char
